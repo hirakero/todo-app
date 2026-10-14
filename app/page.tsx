@@ -13,6 +13,8 @@ export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
   // localStorage の読み込みが終わったか。終わるまで保存してはいけない
   const [isLoaded, setIsLoaded] = useState(false);
+  // 追加後にフォーカスを戻すため、入力欄そのものを掴んでおく
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   // 初回マウント時に localStorage から読み込む。
   // localStorage はブラウザだけの機能なので、サーバー側では動かない useEffect の中で触る
@@ -61,6 +63,8 @@ export default function Home() {
     setTodos([...todos, newTodo]);
     // 入力欄を空に戻す
     setTitle("");
+    // ボタンをクリックしたときはフォーカスがボタンに移るので、入力欄に戻して連続入力できるようにする
+    titleInputRef.current?.focus();
   }
 
   // 編集中のToDoのid。null なら誰も編集していない
@@ -154,6 +158,7 @@ export default function Home() {
           className="mt-10 flex flex-col gap-3 rounded-lg bg-white p-5 shadow-sm sm:flex-row"
         >
           <input
+            ref={titleInputRef}
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}

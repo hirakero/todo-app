@@ -222,8 +222,11 @@ export default function Home() {
           )}
         </form>
 
-        {/* まだ1件もないときは案内文、あるときはカードを並べる */}
-        {todos.length === 0 ? (
+        {/* 読み込み中 → 1件もない → 一覧、の3パターンを出し分ける */}
+        {!isLoaded ? (
+          // 保存データを読む前に一覧を出すと、一瞬「ToDo がありません」が見えてしまう
+          <p className="mt-10 text-center text-sm text-gray-400">読み込み中...</p>
+        ) : todos.length === 0 ? (
           <p className="mt-10 text-center text-sm text-gray-400">
             まだ ToDo がありません
           </p>

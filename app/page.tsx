@@ -15,6 +15,25 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   // 追加後にフォーカスを戻すため、入力欄そのものを掴んでおく
   const titleInputRef = useRef<HTMLInputElement>(null);
+  // 入力欄の下に出すエラー文。null なら出ていない
+  const [addError, setAddError] = useState<string | null>(null);
+
+  // 表示中のトースト。null なら出ていない。
+  // id は「同じ文章でも新しい通知」と区別するための通し番号で、アニメーションのやり直しに使う
+  const [toast, setToast] = useState<{ id: number; message: string } | null>(
+    null,
+  );
+  // 3秒後に消すためのタイマー。連続で出したときに前のタイマーを止める必要がある
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // トーストを出して3秒後に消す
+  function showToast(message: string) {
+    // 前のタイマーが残っていると、新しいトーストが早く消されてしまう
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+
+    setToast({ id: Date.now(), message });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  }
 
   // 初回マウント時に localStorage から読み込む。
   // localStorage はブラウザだけの機能なので、サーバー側では動かない useEffect の中で触る
@@ -48,9 +67,13 @@ export default function Home() {
 
   // 「追加」したときの処理
   function handleAdd() {
-    // 前後の空白を除いて、空のままなら何もしない
+    // 前後の空白を除く。空白だけの入力も空として扱う
     const trimmed = title.trim();
-    if (trimmed === "") return;
+    if (trimmed === "") {
+      // 追加はせず、理由を入力欄の下に出す
+      setAddError("タイトルを入力してください");
+      return;
+    }
 
     // ブラウザ標準のUUID生成。削除や編集で「どれを」操作するかの目印になる
     const newTodo: Todo = {
@@ -65,6 +88,7 @@ export default function Home() {
     setTitle("");
     // ボタンをクリックしたときはフォーカスがボタンに移るので、入力欄に戻して連続入力できるようにする
     titleInputRef.current?.focus();
+    showToast("ToDo を追加しました");
   }
 
   // 編集中のToDoのid。null なら誰も編集していない
@@ -155,30 +179,54 @@ export default function Home() {
             event.preventDefault(); // ページのリロードを防ぐ
             handleAdd();
           }}
-          className="mt-10 flex flex-col gap-3 rounded-lg bg-white p-5 shadow-sm sm:flex-row"
+          className="mt-10 rounded-lg bg-white p-5 shadow-sm"
         >
-          <input
-            ref={titleInputRef}
-            type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="やることを入力"
-            // 編集中は追加できないようにする
-            disabled={editingId !== null}
-            // min-w-0 がないと長い入力のときに flex アイテムが縮まず、横スクロールの原因になる
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 px-4 py-3 outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
-          />
-          <button
-            type="submit"
-            disabled={editingId !== null}
-            className="rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
-          >
-            追加
-          </button>
+          {/* 入力欄とボタンを横並びにする箱。エラー文はこの箱の外（下）に出す */}
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={title}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                // 何か入力したらエラーは用済みなので消す
+                setAddError(null);
+              }}
+              placeholder="やることを入力"
+              // 編集中は追加できないようにする
+              disabled={editingId !== null}
+              // 入力内容に問題があることを支援技術にも伝える
+              aria-invalid={addError !== null}
+              aria-describedby={addError ? "add-error" : undefined}
+              // min-w-0 がないと長い入力のときに flex アイテムが縮まず、横スクロールの原因になる
+              className={`min-w-0 flex-1 rounded-lg border px-4 py-3 outline-none disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 ${
+                addError
+                  ? "border-red-400 focus:border-red-500"
+                  : "border-gray-200 focus:border-emerald-500"
+              }`}
+            />
+            <button
+              type="submit"
+              disabled={editingId !== null}
+              className="rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+            >
+              追加
+            </button>
+          </div>
+
+          {/* エラーは入力欄の直下。role="alert" で、出た瞬間に読み上げられる */}
+          {addError && (
+            <p id="add-error" role="alert" className="mt-3 text-sm text-red-600">
+              {addError}
+            </p>
+          )}
         </form>
 
-        {/* まだ1件もないときは案内文、あるときはカードを並べる */}
-        {todos.length === 0 ? (
+        {/* 読み込み中 → 1件もない → 一覧、の3パターンを出し分ける */}
+        {!isLoaded ? (
+          // 保存データを読む前に一覧を出すと、一瞬「ToDo がありません」が見えてしまう
+          <p className="mt-10 text-center text-sm text-gray-400">読み込み中...</p>
+        ) : todos.length === 0 ? (
           <p className="mt-10 text-center text-sm text-gray-400">
             まだ ToDo がありません
           </p>
@@ -314,6 +362,22 @@ export default function Home() {
           </div>
         </dialog>
       </main>
+
+      {/* トースト。fixed なので一覧の長さに関係なく画面の右下に固定される */}
+      {toast && (
+        <div
+          // key が変わると要素が作り直され、アニメーションがもう一度再生される。
+          // 連続で追加したときも「また出た」と分かるようにするため
+          key={toast.id}
+          // role="status" + aria-live で、スクリーンリーダーにも読み上げられる
+          role="status"
+          aria-live="polite"
+          className="animate-toast-in fixed bottom-6 right-4 flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-sm shadow-md sm:right-6"
+        >
+          <span className="size-2 shrink-0 rounded-full bg-emerald-500" />
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

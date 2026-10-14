@@ -59,6 +59,15 @@ export default function Home() {
     handleCancelEdit(); // 編集状態の後片付けは同じなので使い回す
   }
 
+  // 1件削除する。確認ダイアログでOKを押したときだけ消す
+  function handleDelete(todo: Todo) {
+    // window.confirm は OK なら true、キャンセルなら false を返す
+    if (!window.confirm(`「${todo.title}」を削除しますか？`)) return;
+
+    // filter で「消したいもの以外」を集めた新しい配列を作る
+    setTodos(todos.filter((item) => item.id !== todo.id));
+  }
+
   // チェックの ON / OFF を切り替える
   function handleToggle(id: string) {
     // map で新しい配列を作り、対象のものだけ done を反転させたコピーに差し替える
@@ -187,15 +196,27 @@ export default function Home() {
                         {todo.title}
                       </span>
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => handleStartEdit(todo)}
-                      // 他のToDoを編集中は押せないようにする
-                      disabled={editingId !== null}
-                      className="shrink-0 rounded-md px-3 py-1 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-transparent"
-                    >
-                      編集
-                    </button>
+                    {/* ボタンは横に並べる。shrink-0 で文字が長くても潰れないようにする */}
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(todo)}
+                        // 他のToDoを編集中は押せないようにする
+                        disabled={editingId !== null}
+                        className="rounded-md px-3 py-1 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-transparent"
+                      >
+                        編集
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(todo)}
+                        disabled={editingId !== null}
+                        // 赤系だが、普段は文字だけにして誤操作しにくくしている
+                        className="rounded-md px-3 py-1 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-transparent"
+                      >
+                        削除
+                      </button>
+                    </div>
                   </div>
                 )}
               </li>

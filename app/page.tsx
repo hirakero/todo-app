@@ -28,6 +28,16 @@ export default function Home() {
     setTitle("");
   }
 
+  // チェックの ON / OFF を切り替える
+  function handleToggle(id: string) {
+    // map で新しい配列を作り、対象のものだけ done を反転させたコピーに差し替える
+    setTodos(
+      todos.map((todo) =>
+        todo.id === id ? { ...todo, done: !todo.done } : todo,
+      ),
+    );
+  }
+
   return (
     <div className="flex flex-1 justify-center px-4 py-16 sm:py-24">
       {/* max-w-md で横幅を制限し、スマホでも横スクロールが出ないようにする */}
@@ -73,14 +83,25 @@ export default function Home() {
           <ul className="mt-10 flex flex-col gap-3">
             {todos.map((todo) => (
               // key には id を使う。index だと削除や並べ替えで中身とズレる
-              <li
-                key={todo.id}
-                className="flex items-start gap-3 rounded-lg bg-white p-5 shadow-sm"
-              >
-                {/* 緑のドット。shrink-0 で潰れないようにし、mt-2 で1行目の文字と高さを揃える */}
-                <span className="mt-2 size-2 shrink-0 rounded-full bg-emerald-500" />
-                {/* min-w-0 + break-words で長い文字列もカード内で折り返す */}
-                <span className="min-w-0 break-words">{todo.title}</span>
+              <li key={todo.id} className="rounded-lg bg-white shadow-sm">
+                {/* label で囲むと、チェックボックスだけでなく文字をタップしても切り替わる */}
+                <label className="flex cursor-pointer items-start gap-3 p-5">
+                  <input
+                    type="checkbox"
+                    checked={todo.done}
+                    onChange={() => handleToggle(todo.id)}
+                    // accent-* でチェック時の色をブラウザ標準の青から緑に変える
+                    className="mt-0.5 size-5 shrink-0 accent-emerald-600"
+                  />
+                  {/* min-w-0 + break-words で長い文字列もカード内で折り返す */}
+                  <span
+                    className={`min-w-0 break-words ${
+                      todo.done ? "text-gray-400 line-through" : ""
+                    }`}
+                  >
+                    {todo.title}
+                  </span>
+                </label>
               </li>
             ))}
           </ul>

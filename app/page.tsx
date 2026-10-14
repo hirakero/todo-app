@@ -41,11 +41,11 @@ export default function Home() {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="やることを入力"
-            className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:focus:border-zinc-400"
+            className="flex-1 rounded-lg border border-stone-300 px-4 py-3 outline-none focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
           />
           <button
             type="submit"
-            className="rounded-lg bg-zinc-900 px-6 py-3 font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            className="rounded-lg bg-stone-900 px-6 py-3 font-medium text-white transition-colors hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
           >
             追加
           </button>
@@ -53,7 +53,7 @@ export default function Home() {
 
         {/* まだ1件もないときは案内文、あるときはリストを表示する */}
         {todos.length === 0 ? (
-          <p className="mt-12 text-center text-zinc-500">
+          <p className="mt-12 text-center text-stone-500">
             まだ ToDo がありません
           </p>
         ) : (
@@ -62,7 +62,7 @@ export default function Home() {
               // 今回は削除・並べ替えがないので index を key に使っている
               <li
                 key={index}
-                className="rounded-lg border border-zinc-200 px-4 py-3 break-words dark:border-zinc-800"
+                className="rounded-lg border border-stone-200 px-4 py-3 break-words dark:border-stone-800"
               >
                 {todo}
               </li>

@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ほんのり暖色に振ったオフホワイト（白よりやわらかく見える） */
+  --background: #fdf8f3;
+  --foreground: #1f1a16;
 }
 
 @theme inline {
@@ -14,8 +15,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* ダークモードも同じ暖色系に寄せて、明暗で色味が変わらないようにする */
+    --background: #17130f;
+    --foreground: #f0eae4;
   }
 }
 

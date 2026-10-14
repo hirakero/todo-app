@@ -22,6 +22,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # LayoutProps などの型は .next/types に自動生成される（gitignore対象）。
+      # CI では存在しないため、型チェックの前に生成しておく必要がある。
+      - name: Generate route types
+        run: npx next typegen
+
       - name: Type check
         run: npx tsc --noEmit
 

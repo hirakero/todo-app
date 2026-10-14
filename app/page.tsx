@@ -1,12 +1,13 @@
 "use client"; // 入力やクリックの状態を扱うので、クライアントコンポーネントにする
 
 import { useState } from "react";
+import type { Todo } from "./types";
 
 export default function Home() {
   // 入力欄の文字列
   const [title, setTitle] = useState("");
   // 追加済みのToDo一覧
-  const [todos, setTodos] = useState<string[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
 
   // 「追加」したときの処理
   function handleAdd() {
@@ -14,8 +15,15 @@ export default function Home() {
     const trimmed = title.trim();
     if (trimmed === "") return;
 
+    // ブラウザ標準のUUID生成。削除や編集で「どれを」操作するかの目印になる
+    const newTodo: Todo = {
+      id: crypto.randomUUID(),
+      title: trimmed,
+      done: false,
+    };
+
     // 既存の配列は変更せず、末尾に足した新しい配列を作って渡す
-    setTodos([...todos, trimmed]);
+    setTodos([...todos, newTodo]);
     // 入力欄を空に戻す
     setTitle("");
   }
@@ -63,16 +71,16 @@ export default function Home() {
           </p>
         ) : (
           <ul className="mt-10 flex flex-col gap-3">
-            {todos.map((todo, index) => (
-              // 今回は削除・並べ替えがないので index を key に使っている
+            {todos.map((todo) => (
+              // key には id を使う。index だと削除や並べ替えで中身とズレる
               <li
-                key={index}
+                key={todo.id}
                 className="flex items-start gap-3 rounded-lg bg-white p-5 shadow-sm"
               >
                 {/* 緑のドット。shrink-0 で潰れないようにし、mt-2 で1行目の文字と高さを揃える */}
                 <span className="mt-2 size-2 shrink-0 rounded-full bg-emerald-500" />
                 {/* min-w-0 + break-words で長い文字列もカード内で折り返す */}
-                <span className="min-w-0 break-words">{todo}</span>
+                <span className="min-w-0 break-words">{todo.title}</span>
               </li>
             ))}
           </ul>

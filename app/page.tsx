@@ -24,47 +24,55 @@ export default function Home() {
     <div className="flex flex-1 justify-center px-4 py-16 sm:py-24">
       {/* max-w-md で横幅を制限し、スマホでも横スクロールが出ないようにする */}
       <main className="w-full max-w-md">
-        <h1 className="text-center text-3xl font-semibold tracking-tight">
+        <h1 className="text-center text-4xl font-bold tracking-tight text-emerald-900">
           ToDo リスト
         </h1>
+        <p className="mt-3 text-center text-sm text-gray-500">
+          今日やることを書き出しましょう
+        </p>
 
+        {/* 入力エリアも白いカードにして、下の一覧と見た目を揃える */}
         {/* form にすると Enter キーでも追加できる */}
         <form
           onSubmit={(event) => {
             event.preventDefault(); // ページのリロードを防ぐ
             handleAdd();
           }}
-          className="mt-10 flex flex-col gap-3 sm:flex-row"
+          className="mt-10 flex flex-col gap-3 rounded-lg bg-white p-5 shadow-sm sm:flex-row"
         >
           <input
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="やることを入力"
-            className="flex-1 rounded-lg border border-stone-300 px-4 py-3 outline-none focus:border-stone-500 dark:border-stone-700 dark:focus:border-stone-400"
+            // min-w-0 がないと長い入力のときに flex アイテムが縮まず、横スクロールの原因になる
+            className="min-w-0 flex-1 rounded-lg border border-gray-200 px-4 py-3 outline-none focus:border-emerald-500"
           />
           <button
             type="submit"
-            className="rounded-lg bg-stone-900 px-6 py-3 font-medium text-white transition-colors hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
+            className="rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
           >
             追加
           </button>
         </form>
 
-        {/* まだ1件もないときは案内文、あるときはリストを表示する */}
+        {/* まだ1件もないときは案内文、あるときはカードを並べる */}
         {todos.length === 0 ? (
-          <p className="mt-12 text-center text-stone-500">
+          <p className="mt-10 text-center text-sm text-gray-400">
             まだ ToDo がありません
           </p>
         ) : (
-          <ul className="mt-12 flex flex-col gap-3">
+          <ul className="mt-10 flex flex-col gap-3">
             {todos.map((todo, index) => (
               // 今回は削除・並べ替えがないので index を key に使っている
               <li
                 key={index}
-                className="rounded-lg border border-stone-200 px-4 py-3 break-words dark:border-stone-800"
+                className="flex items-start gap-3 rounded-lg bg-white p-5 shadow-sm"
               >
-                {todo}
+                {/* 緑のドット。shrink-0 で潰れないようにし、mt-2 で1行目の文字と高さを揃える */}
+                <span className="mt-2 size-2 shrink-0 rounded-full bg-emerald-500" />
+                {/* min-w-0 + break-words で長い文字列もカード内で折り返す */}
+                <span className="min-w-0 break-words">{todo}</span>
               </li>
             ))}
           </ul>

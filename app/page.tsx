@@ -28,6 +28,37 @@ export default function Home() {
     setTitle("");
   }
 
+  // 編集中のToDoのid。null なら誰も編集していない
+  const [editingId, setEditingId] = useState<string | null>(null);
+  // 編集欄に表示している文字列（確定するまで todos には反映しない）
+  const [editingTitle, setEditingTitle] = useState("");
+
+  // 編集モードに入る
+  function handleStartEdit(todo: Todo) {
+    setEditingId(todo.id);
+    setEditingTitle(todo.title);
+  }
+
+  // 編集をやめて元に戻す。editingTitle は捨てるだけでよい
+  function handleCancelEdit() {
+    setEditingId(null);
+    setEditingTitle("");
+  }
+
+  // 編集内容を確定する
+  function handleSaveEdit() {
+    const trimmed = editingTitle.trim();
+    // 保存ボタンは空のとき無効化しているが、Enter でも送信できるのでここでも弾く
+    if (trimmed === "") return;
+
+    setTodos(
+      todos.map((todo) =>
+        todo.id === editingId ? { ...todo, title: trimmed } : todo,
+      ),
+    );
+    handleCancelEdit(); // 編集状態の後片付けは同じなので使い回す
+  }
+
   // チェックの ON / OFF を切り替える
   function handleToggle(id: string) {
     // map で新しい配列を作り、対象のものだけ done を反転させたコピーに差し替える
@@ -63,12 +94,15 @@ export default function Home() {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="やることを入力"
+            // 編集中は追加できないようにする
+            disabled={editingId !== null}
             // min-w-0 がないと長い入力のときに flex アイテムが縮まず、横スクロールの原因になる
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 px-4 py-3 outline-none focus:border-emerald-500"
+            className="min-w-0 flex-1 rounded-lg border border-gray-200 px-4 py-3 outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
           />
           <button
             type="submit"
-            className="rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
+            disabled={editingId !== null}
+            className="rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
           >
             追加
           </button>
@@ -84,24 +118,86 @@ export default function Home() {
             {todos.map((todo) => (
               // key には id を使う。index だと削除や並べ替えで中身とズレる
               <li key={todo.id} className="rounded-lg bg-white shadow-sm">
-                {/* label で囲むと、チェックボックスだけでなく文字をタップしても切り替わる */}
-                <label className="flex cursor-pointer items-start gap-3 p-5">
-                  <input
-                    type="checkbox"
-                    checked={todo.done}
-                    onChange={() => handleToggle(todo.id)}
-                    // accent-* でチェック時の色をブラウザ標準の青から緑に変える
-                    className="mt-0.5 size-5 shrink-0 accent-emerald-600"
-                  />
-                  {/* min-w-0 + break-words で長い文字列もカード内で折り返す */}
-                  <span
-                    className={`min-w-0 break-words ${
-                      todo.done ? "text-gray-400 line-through" : ""
-                    }`}
+                {editingId === todo.id ? (
+                  // ----- 編集モード -----
+                  // form にすると Enter キーで保存できる
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      handleSaveEdit();
+                    }}
+                    className="flex flex-col gap-3 p-5"
                   >
-                    {todo.title}
-                  </span>
-                </label>
+                    <input
+                      type="text"
+                      value={editingTitle}
+                      onChange={(event) => setEditingTitle(event.target.value)}
+                      // Esc で編集をやめる。input は Esc を自前で拾う必要がある
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") handleCancelEdit();
+                      }}
+                      // 編集モードに入った瞬間に input が新しく表示されるので、ここにフォーカスが当たる
+                      autoFocus
+                      className="min-w-0 rounded-lg border border-emerald-500 px-4 py-3 outline-none"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+                      >
+                        キャンセル
+                      </button>
+                      <button
+                        type="submit"
+                        // 空文字では保存させない
+                        disabled={editingTitle.trim() === ""}
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
+                      >
+                        保存
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  // ----- 通常表示 -----
+                  <div className="flex items-start gap-3 p-5">
+                    {/* label で囲むと、チェックボックスだけでなく文字をタップしても切り替わる */}
+                    <label
+                      className={`flex min-w-0 flex-1 items-start gap-3 ${
+                        editingId === null
+                          ? "cursor-pointer"
+                          : "cursor-not-allowed"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={todo.done}
+                        onChange={() => handleToggle(todo.id)}
+                        // 他のToDoを編集中はチェックを変えられないようにする
+                        disabled={editingId !== null}
+                        // accent-* でチェック時の色をブラウザ標準の青から緑に変える
+                        className="mt-0.5 size-5 shrink-0 accent-emerald-600 disabled:cursor-not-allowed"
+                      />
+                      {/* min-w-0 + break-words で長い文字列もカード内で折り返す */}
+                      <span
+                        className={`min-w-0 break-words ${
+                          todo.done ? "text-gray-400 line-through" : ""
+                        }`}
+                      >
+                        {todo.title}
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleStartEdit(todo)}
+                      // 他のToDoを編集中は押せないようにする
+                      disabled={editingId !== null}
+                      className="shrink-0 rounded-md px-3 py-1 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-transparent"
+                    >
+                      編集
+                    </button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

@@ -1,13 +1,48 @@
 "use client"; // 入力やクリックの状態を扱うので、クライアントコンポーネントにする
 
 import { useEffect, useRef, useState } from "react";
-import type { Todo } from "./types";
+import { isTodo, type Todo } from "./types";
+
+// localStorage の保存キー。同じ localhost で動く他のアプリと衝突しない名前にする
+const STORAGE_KEY = "todo-app-items";
 
 export default function Home() {
   // 入力欄の文字列
   const [title, setTitle] = useState("");
   // 追加済みのToDo一覧
   const [todos, setTodos] = useState<Todo[]>([]);
+  // localStorage の読み込みが終わったか。終わるまで保存してはいけない
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // 初回マウント時に localStorage から読み込む。
+  // localStorage はブラウザだけの機能なので、サーバー側では動かない useEffect の中で触る
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    // 保存されていなければ何もしない（todos は空配列のまま）
+    if (saved) {
+      try {
+        const parsed: unknown = JSON.parse(saved);
+        // 配列であることを確かめ、さらに Todo の形をしている要素だけを残す。
+        // effect 内の setState は通常避けるべきだが、localStorage はサーバーに存在せず
+        // 描画中に読めないため、ここだけは意図的に許可している（マウント後に1回だけ）
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (Array.isArray(parsed)) setTodos(parsed.filter(isTodo));
+      } catch {
+        // JSON として壊れていた場合。空のまま進める
+      }
+    }
+
+    setIsLoaded(true);
+  }, []); // 第2引数の [] は「初回マウント時に1回だけ実行する」という意味
+
+  // todos が変わるたびに保存する。追加・編集・削除・チェックのすべてがここを通る
+  useEffect(() => {
+    // 読み込み前に走ると、保存済みのデータを空配列で上書きしてしまう
+    if (!isLoaded) return;
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+  }, [todos, isLoaded]);
 
   // 「追加」したときの処理
   function handleAdd() {

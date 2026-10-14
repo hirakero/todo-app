@@ -15,6 +15,8 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   // 追加後にフォーカスを戻すため、入力欄そのものを掴んでおく
   const titleInputRef = useRef<HTMLInputElement>(null);
+  // 入力欄の下に出すエラー文。null なら出ていない
+  const [addError, setAddError] = useState<string | null>(null);
 
   // 表示中のトースト。null なら出ていない。
   // id は「同じ文章でも新しい通知」と区別するための通し番号で、アニメーションのやり直しに使う
@@ -65,9 +67,13 @@ export default function Home() {
 
   // 「追加」したときの処理
   function handleAdd() {
-    // 前後の空白を除いて、空のままなら何もしない
+    // 前後の空白を除く。空白だけの入力も空として扱う
     const trimmed = title.trim();
-    if (trimmed === "") return;
+    if (trimmed === "") {
+      // 追加はせず、理由を入力欄の下に出す
+      setAddError("タイトルを入力してください");
+      return;
+    }
 
     // ブラウザ標準のUUID生成。削除や編集で「どれを」操作するかの目印になる
     const newTodo: Todo = {
@@ -173,26 +179,47 @@ export default function Home() {
             event.preventDefault(); // ページのリロードを防ぐ
             handleAdd();
           }}
-          className="mt-10 flex flex-col gap-3 rounded-lg bg-white p-5 shadow-sm sm:flex-row"
+          className="mt-10 rounded-lg bg-white p-5 shadow-sm"
         >
-          <input
-            ref={titleInputRef}
-            type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="やることを入力"
-            // 編集中は追加できないようにする
-            disabled={editingId !== null}
-            // min-w-0 がないと長い入力のときに flex アイテムが縮まず、横スクロールの原因になる
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 px-4 py-3 outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
-          />
-          <button
-            type="submit"
-            disabled={editingId !== null}
-            className="rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
-          >
-            追加
-          </button>
+          {/* 入力欄とボタンを横並びにする箱。エラー文はこの箱の外（下）に出す */}
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={title}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                // 何か入力したらエラーは用済みなので消す
+                setAddError(null);
+              }}
+              placeholder="やることを入力"
+              // 編集中は追加できないようにする
+              disabled={editingId !== null}
+              // 入力内容に問題があることを支援技術にも伝える
+              aria-invalid={addError !== null}
+              aria-describedby={addError ? "add-error" : undefined}
+              // min-w-0 がないと長い入力のときに flex アイテムが縮まず、横スクロールの原因になる
+              className={`min-w-0 flex-1 rounded-lg border px-4 py-3 outline-none disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 ${
+                addError
+                  ? "border-red-400 focus:border-red-500"
+                  : "border-gray-200 focus:border-emerald-500"
+              }`}
+            />
+            <button
+              type="submit"
+              disabled={editingId !== null}
+              className="rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+            >
+              追加
+            </button>
+          </div>
+
+          {/* エラーは入力欄の直下。role="alert" で、出た瞬間に読み上げられる */}
+          {addError && (
+            <p id="add-error" role="alert" className="mt-3 text-sm text-red-600">
+              {addError}
+            </p>
+          )}
         </form>
 
         {/* まだ1件もないときは案内文、あるときはカードを並べる */}

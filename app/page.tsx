@@ -16,6 +16,23 @@ export default function Home() {
   // 追加後にフォーカスを戻すため、入力欄そのものを掴んでおく
   const titleInputRef = useRef<HTMLInputElement>(null);
 
+  // 表示中のトースト。null なら出ていない。
+  // id は「同じ文章でも新しい通知」と区別するための通し番号で、アニメーションのやり直しに使う
+  const [toast, setToast] = useState<{ id: number; message: string } | null>(
+    null,
+  );
+  // 3秒後に消すためのタイマー。連続で出したときに前のタイマーを止める必要がある
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // トーストを出して3秒後に消す
+  function showToast(message: string) {
+    // 前のタイマーが残っていると、新しいトーストが早く消されてしまう
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+
+    setToast({ id: Date.now(), message });
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  }
+
   // 初回マウント時に localStorage から読み込む。
   // localStorage はブラウザだけの機能なので、サーバー側では動かない useEffect の中で触る
   useEffect(() => {
@@ -65,6 +82,7 @@ export default function Home() {
     setTitle("");
     // ボタンをクリックしたときはフォーカスがボタンに移るので、入力欄に戻して連続入力できるようにする
     titleInputRef.current?.focus();
+    showToast("ToDo を追加しました");
   }
 
   // 編集中のToDoのid。null なら誰も編集していない
@@ -314,6 +332,22 @@ export default function Home() {
           </div>
         </dialog>
       </main>
+
+      {/* トースト。fixed なので一覧の長さに関係なく画面の右下に固定される */}
+      {toast && (
+        <div
+          // key が変わると要素が作り直され、アニメーションがもう一度再生される。
+          // 連続で追加したときも「また出た」と分かるようにするため
+          key={toast.id}
+          // role="status" + aria-live で、スクリーンリーダーにも読み上げられる
+          role="status"
+          aria-live="polite"
+          className="animate-toast-in fixed bottom-6 right-4 flex items-center gap-2 rounded-lg bg-white px-4 py-3 text-sm shadow-md sm:right-6"
+        >
+          <span className="size-2 shrink-0 rounded-full bg-emerald-500" />
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client"; // 入力やクリックの状態を扱うので、クライアントコンポーネントにする
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Todo } from "./types";
 
 export default function Home() {
@@ -59,13 +59,33 @@ export default function Home() {
     handleCancelEdit(); // 編集状態の後片付けは同じなので使い回す
   }
 
-  // 1件削除する。確認ダイアログでOKを押したときだけ消す
+  // 削除の確認中のToDo。null ならダイアログは出ていない
+  const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null);
+  // <dialog> を開閉するには DOM の要素そのものを操作する必要があるので ref で掴む
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  // deletingTodo の変化に合わせてダイアログを開閉する
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    // showModal() だと背景が操作できなくなり、Esc で閉じる動作も付いてくる
+    if (deletingTodo) dialog.showModal();
+    else dialog.close();
+  }, [deletingTodo]);
+
+  // 削除ボタンを押したとき。まだ消さず、確認ダイアログを開くだけ
   function handleDelete(todo: Todo) {
-    // window.confirm は OK なら true、キャンセルなら false を返す
-    if (!window.confirm(`「${todo.title}」を削除しますか？`)) return;
+    setDeletingTodo(todo);
+  }
+
+  // ダイアログで「削除する」を押したとき
+  function handleConfirmDelete() {
+    if (!deletingTodo) return;
 
     // filter で「消したいもの以外」を集めた新しい配列を作る
-    setTodos(todos.filter((item) => item.id !== todo.id));
+    setTodos(todos.filter((item) => item.id !== deletingTodo.id));
+    setDeletingTodo(null);
   }
 
   // チェックの ON / OFF を切り替える
@@ -223,6 +243,36 @@ export default function Home() {
             ))}
           </ul>
         )}
+
+        {/* 削除の確認ダイアログ。開いていないときはブラウザが非表示にしてくれる */}
+        <dialog
+          ref={dialogRef}
+          // Esc キーや dialog.close() で閉じたときに呼ばれる。状態も閉じた状態に揃える
+          onClose={() => setDeletingTodo(null)}
+          // backdrop: で背景の暗幕にも色を付けられる
+          className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-lg bg-white p-6 shadow-lg backdrop:bg-black/30"
+        >
+          <h2 className="text-lg font-bold">ToDo を削除しますか？</h2>
+          <p className="mt-3 break-words text-sm text-gray-600">
+            「{deletingTodo?.title}」を削除します。この操作は取り消せません。
+          </p>
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setDeletingTodo(null)}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+            >
+              キャンセル
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmDelete}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+            >
+              削除する
+            </button>
+          </div>
+        </dialog>
       </main>
     </div>
   );

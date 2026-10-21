@@ -1,18 +1,18 @@
 "use client"; // 入力やクリックの状態を扱うので、クライアントコンポーネントにする
 
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "./lib/supabase";
 import { isTodo, type Todo } from "./types";
-
-// localStorage の保存キー。同じ localhost で動く他のアプリと衝突しない名前にする
-const STORAGE_KEY = "todo-app-items";
 
 export default function Home() {
   // 入力欄の文字列
   const [title, setTitle] = useState("");
   // 追加済みのToDo一覧
   const [todos, setTodos] = useState<Todo[]>([]);
-  // localStorage の読み込みが終わったか。終わるまで保存してはいけない
+  // 最初の読み込みが終わったか。終わるまでは「読み込み中」を出す
   const [isLoaded, setIsLoaded] = useState(false);
+  // 追加の送信中か。連打で同じToDoが2件できるのを防ぐ
+  const [isAdding, setIsAdding] = useState(false);
   // 追加後にフォーカスを戻すため、入力欄そのものを掴んでおく
   const titleInputRef = useRef<HTMLInputElement>(null);
   // 入力欄の下に出すエラー文。null なら出ていない
@@ -35,38 +35,30 @@ export default function Home() {
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }
 
-  // 初回マウント時に localStorage から読み込む。
-  // localStorage はブラウザだけの機能なので、サーバー側では動かない useEffect の中で触る
+  // 初回マウント時に Supabase から一覧を読み込む。
+  // 通信は描画中に行えないので useEffect の中で行う
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    async function load() {
+      // 作成日時の古い順（＝追加した順）に取得する
+      const { data, error } = await supabase
+        .from("todos")
+        .select("id, title, done")
+        .order("created_at", { ascending: true });
 
-    // 保存されていなければ何もしない（todos は空配列のまま）
-    if (saved) {
-      try {
-        const parsed: unknown = JSON.parse(saved);
-        // 配列であることを確かめ、さらに Todo の形をしている要素だけを残す。
-        // effect 内の setState は通常避けるべきだが、localStorage はサーバーに存在せず
-        // 描画中に読めないため、ここだけは意図的に許可している（マウント後に1回だけ）
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (Array.isArray(parsed)) setTodos(parsed.filter(isTodo));
-      } catch {
-        // JSON として壊れていた場合。空のまま進める
+      if (error) {
+        showToast("読み込みに失敗しました");
+      } else {
+        // Todo の形をしている行だけを残す
+        setTodos(data.filter(isTodo));
       }
+      setIsLoaded(true);
     }
 
-    setIsLoaded(true);
+    load();
   }, []); // 第2引数の [] は「初回マウント時に1回だけ実行する」という意味
 
-  // todos が変わるたびに保存する。追加・編集・削除・チェックのすべてがここを通る
-  useEffect(() => {
-    // 読み込み前に走ると、保存済みのデータを空配列で上書きしてしまう
-    if (!isLoaded) return;
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-  }, [todos, isLoaded]);
-
   // 「追加」したときの処理
-  function handleAdd() {
+  async function handleAdd() {
     // 前後の空白を除く。空白だけの入力も空として扱う
     const trimmed = title.trim();
     if (trimmed === "") {
@@ -75,15 +67,24 @@ export default function Home() {
       return;
     }
 
-    // ブラウザ標準のUUID生成。削除や編集で「どれを」操作するかの目印になる
-    const newTodo: Todo = {
-      id: crypto.randomUUID(),
-      title: trimmed,
-      done: false,
-    };
+    setIsAdding(true);
+    // id と作成日時は DB が自動で付けるので、title だけ送る。
+    // select() を付けると、DB が付けた id を含む行が返ってくる
+    const { data, error } = await supabase
+      .from("todos")
+      .insert({ title: trimmed })
+      .select("id, title, done")
+      .single();
+    setIsAdding(false);
+
+    if (error || !isTodo(data)) {
+      // 失敗したときは入力欄を残し、やり直せるようにする
+      showToast("追加に失敗しました");
+      return;
+    }
 
     // 既存の配列は変更せず、末尾に足した新しい配列を作って渡す
-    setTodos([...todos, newTodo]);
+    setTodos((current) => [...current, data]);
     // 入力欄を空に戻す
     setTitle("");
     // ボタンをクリックしたときはフォーカスがボタンに移るので、入力欄に戻して連続入力できるようにする
@@ -109,13 +110,23 @@ export default function Home() {
   }
 
   // 編集内容を確定する
-  function handleSaveEdit() {
+  async function handleSaveEdit() {
     const trimmed = editingTitle.trim();
     // 保存ボタンは空のとき無効化しているが、Enter でも送信できるのでここでも弾く
-    if (trimmed === "") return;
+    if (trimmed === "" || editingId === null) return;
 
-    setTodos(
-      todos.map((todo) =>
+    // DB の更新に成功してから画面に反映する。失敗時は編集欄を残してやり直せるようにする
+    const { error } = await supabase
+      .from("todos")
+      .update({ title: trimmed })
+      .eq("id", editingId);
+    if (error) {
+      showToast("保存に失敗しました");
+      return;
+    }
+
+    setTodos((current) =>
+      current.map((todo) =>
         todo.id === editingId ? { ...todo, title: trimmed } : todo,
       ),
     );
@@ -143,20 +154,39 @@ export default function Home() {
   }
 
   // ダイアログで「削除する」を押したとき
-  function handleConfirmDelete() {
+  async function handleConfirmDelete() {
     if (!deletingTodo) return;
 
+    const { error } = await supabase
+      .from("todos")
+      .delete()
+      .eq("id", deletingTodo.id);
+    if (error) {
+      showToast("削除に失敗しました");
+      setDeletingTodo(null);
+      return;
+    }
+
     // filter で「消したいもの以外」を集めた新しい配列を作る
-    setTodos(todos.filter((item) => item.id !== deletingTodo.id));
+    setTodos((current) => current.filter((item) => item.id !== deletingTodo.id));
     setDeletingTodo(null);
   }
 
   // チェックの ON / OFF を切り替える
-  function handleToggle(id: string) {
+  async function handleToggle(todo: Todo) {
+    const { error } = await supabase
+      .from("todos")
+      .update({ done: !todo.done })
+      .eq("id", todo.id);
+    if (error) {
+      showToast("更新に失敗しました");
+      return;
+    }
+
     // map で新しい配列を作り、対象のものだけ done を反転させたコピーに差し替える
-    setTodos(
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, done: !todo.done } : todo,
+    setTodos((current) =>
+      current.map((item) =>
+        item.id === todo.id ? { ...item, done: !item.done } : item,
       ),
     );
   }
@@ -207,7 +237,7 @@ export default function Home() {
             />
             <button
               type="submit"
-              disabled={editingId !== null}
+              disabled={editingId !== null || isAdding}
               className="rounded-lg bg-emerald-600 px-6 py-3 font-medium text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
             >
               追加
@@ -289,7 +319,7 @@ export default function Home() {
                       <input
                         type="checkbox"
                         checked={todo.done}
-                        onChange={() => handleToggle(todo.id)}
+                        onChange={() => handleToggle(todo)}
                         // 他のToDoを編集中はチェックを変えられないようにする
                         disabled={editingId !== null}
                         // accent-* でチェック時の色をブラウザ標準の青から緑に変える

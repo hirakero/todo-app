@@ -33,5 +33,10 @@ jobs:
       - name: Lint
         run: npx eslint . --max-warnings 0
 
+      # .env.local は CI に存在しない。Supabase クライアントは作成時に URL が必須なので、
+      # ビルドを通すためのダミー値を渡す（ビルド中は DB に接続しないため本物は不要）
       - name: Build
         run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: dummy-key-for-ci

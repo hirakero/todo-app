@@ -17,7 +17,7 @@ main（branch protection: 直接push禁止 / CI "verify" 必須 / strict）
  └─ feat/xxx, fix/xxx, refactor/xxx, ci/xxx, docs/xxx → PR → CI通過 → Squash merge
 ```
 
-- マージは **Squash merge**。ブランチは削除する
+- マージは **Squash merge**。マージ済みのブランチは削除せず残す（履歴を後から辿れるようにするため。削除の提案もしない）
 - レビュー承認は必須にしていない（1人開発では自分の PR を承認できずマージ不能になるため）。共同開発者が増えた時点で有効化する
 - CI は `.github/workflows/ci.yml` で `npm ci` → `next typegen` → `tsc --noEmit` → `eslint` → `next build` を実行する
   - `next typegen` は必須。`LayoutProps` などの型は gitignore 対象の `.next/types` に生成されるため、これが無いとクリーンな CI で型チェックが落ちる

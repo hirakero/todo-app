@@ -1,8 +1,11 @@
 "use client"; // 入力やクリックの状態を扱うので、クライアントコンポーネントにする
 
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "./lib/supabase";
+import { createClient } from "./lib/supabase/client";
 import { isTodo, type Todo } from "./types";
+
+// ブラウザ用クライアント。内部で使い回されるので、モジュール直下で作ってよい
+const supabase = createClient();
 
 export default function Home() {
   // 入力欄の文字列

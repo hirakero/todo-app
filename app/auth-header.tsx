@@ -1,10 +1,14 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import LogoutButton from "./logout-button";
 import { createClient } from "./lib/supabase/server";
 
 // ヘッダー。ログイン中ならメールアドレスとログアウト、未ログインならリンクを出す。
 // Cookie を読むのでリクエストごとに描画される（layout 側で Suspense で包む）
 export default async function AuthHeader() {
+  // getClaims() はトークンの期限を現在時刻と比べる（内部で Date.now() を使う）。
+  // 事前描画（prerender）中に時刻を使うとエラーになるので、先に「リクエスト時に描画する」と明示する
+  await connection();
   const supabase = await createClient();
   // getClaims は署名を検証してから中身を返すので、サーバー側でも信用してよい
   const { data } = await supabase.auth.getClaims();

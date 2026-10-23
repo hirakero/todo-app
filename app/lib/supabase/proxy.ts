@@ -38,7 +38,28 @@ export async function updateSession(request: NextRequest) {
 
   // createServerClient とこの呼び出しの間に、別の処理を挟まないこと。
   // getClaims() がトークンの検証と更新を行う。消すと勝手にログアウトされることがある
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+
+  // ログイン中にログイン・新規登録の画面を開いたら、ルートへ移動させる
+  const { pathname } = request.nextUrl;
+  if (data?.claims && (pathname === "/login" || pathname === "/signup")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    url.search = "";
+    const redirectResponse = NextResponse.redirect(url);
+
+    // 更新されたトークンの Cookie と Cache-Control を、移動用のレスポンスにも引き継ぐ。
+    // 引き継がないと、トークンが更新された直後の移動でログインが切れることがある
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+    supabaseResponse.headers.forEach((value, key) => {
+      if (key === "cache-control" || key === "expires" || key === "pragma") {
+        redirectResponse.headers.set(key, value);
+      }
+    });
+    return redirectResponse;
+  }
 
   // 作り直したレスポンスを、そのまま返す必要がある（Cookie が入っているため）
   return supabaseResponse;

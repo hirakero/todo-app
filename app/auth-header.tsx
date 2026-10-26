@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import { logout } from "./auth/actions";
 import LogoutButton from "./logout-button";
 import { createClient } from "./lib/supabase/server";
 
@@ -23,7 +24,9 @@ export default async function AuthHeader() {
             <span className="min-w-0 truncate text-sm text-gray-500">
               {email}
             </span>
-            <LogoutButton />
+            <form action={logout}>
+              <LogoutButton />
+            </form>
           </>
         ) : (
           <>

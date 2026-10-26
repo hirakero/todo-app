@@ -1,33 +1,18 @@
-"use client"; // クリックで signOut を呼ぶので、クライアントコンポーネントにする
+"use client"; // 送信中かどうか（useFormStatus）を使うので、クライアントコンポーネントにする
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { createClient } from "./lib/supabase/client";
+import { useFormStatus } from "react-dom";
 
+// <form action={logout}> の中に置く。押すとフォームが送信され、Server Action が動く
 export default function LogoutButton() {
-  const router = useRouter();
-  // 連打防止。ログアウト中はボタンを押せなくする
-  const [isPending, setIsPending] = useState(false);
-
-  async function handleLogout() {
-    setIsPending(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signOut();
-    setIsPending(false);
-
-    // 失敗したときは画面を変えない（ログイン中のまま）
-    if (error) return;
-
-    // サーバー側で描画されているヘッダーを作り直し、未ログイン表示に切り替える
-    router.refresh();
-  }
+  // 親の form が送信中の間は pending が true になる。連打防止に使う
+  const { pending } = useFormStatus();
 
   return (
     <button
-      type="button"
-      onClick={handleLogout}
-      disabled={isPending}
-      className="rounded-md px-3 py-1 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-transparent"
+      type="submit"
+      aria-label="ログアウト"
+      disabled={pending}
+      className="rounded-md px-3 py-1 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-transparent"
     >
       ログアウト
     </button>

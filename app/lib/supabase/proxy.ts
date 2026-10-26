@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // すべてのリクエストの前に呼ばれ、ログイン情報（Cookie 内のトークン）を最新に保つ。
 // Server Component は Cookie を書けないので、ここで更新して
 // 「サーバー側のコード」と「ブラウザ」の両方に新しいトークンを渡す。
-// 未ログインでもリダイレクトはしない（ToDo 画面は未ログインでも見られる）
+// 未ログイン時の転送はここではなく、各ページ（Server Component）で行う
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 

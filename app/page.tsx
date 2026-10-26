@@ -1,5 +1,6 @@
 "use client"; // 入力やクリックの状態を扱うので、クライアントコンポーネントにする
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "./lib/supabase/client";
 import { isTodo, type Todo } from "./types";
@@ -12,8 +13,12 @@ export default function Home() {
   const [title, setTitle] = useState("");
   // 追加済みのToDo一覧
   const [todos, setTodos] = useState<Todo[]>([]);
-  // 最初の読み込みが終わったか。終わるまでは「読み込み中」を出す
-  const [isLoaded, setIsLoaded] = useState(false);
+  // ログイン中のユーザーの id。undefined = まだ確認中、null = 未ログイン
+  const [userId, setUserId] = useState<string | null | undefined>(undefined);
+  // どのユーザーの一覧を読み込み済みか。userId と同じなら「読み込み完了」とみなす。
+  // ログインし直して別のユーザーになったときも、自動で「読み込み中」に戻る
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const isLoaded = userId !== undefined && loadedUserId === userId;
   // 追加の送信中か。連打で同じToDoが2件できるのを防ぐ
   const [isAdding, setIsAdding] = useState(false);
   // 追加後にフォーカスを戻すため、入力欄そのものを掴んでおく
@@ -38,15 +43,36 @@ export default function Home() {
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }
 
-  // 初回マウント時に Supabase から一覧を読み込む。
+  // ログイン状態の変化を監視する。登録した直後（最初の確認）、ログイン、ログアウトで呼ばれる。
+  // この画面は別ページへ移動しても残るので、ヘッダーのログアウトにもここで追従できる。
+  // コールバックの中では Supabase を呼ばず、状態を更新するだけにする（呼ぶと固まることがある）
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user.id ?? null);
+    });
+
+    // 画面を閉じるときに監視をやめる
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ログイン中のユーザーが決まったら、そのユーザーの一覧を Supabase から読み込む。
   // 通信は描画中に行えないので useEffect の中で行う
   useEffect(() => {
+    if (!userId) return;
+    const currentUserId: string = userId;
+    // 読み込み中にユーザーが変わったら、古い結果は捨てる
+    let cancelled = false;
+
     async function load() {
-      // 作成日時の古い順（＝追加した順）に取得する
+      // 作成日時の古い順（＝追加した順）に取得する。
+      // 自分の行だけが返るのは RLS（DB 側のポリシー）のおかげ
       const { data, error } = await supabase
         .from("todos")
         .select("id, title, done")
         .order("created_at", { ascending: true });
+      if (cancelled) return;
 
       if (error) {
         showToast("読み込みに失敗しました");
@@ -54,11 +80,14 @@ export default function Home() {
         // Todo の形をしている行だけを残す
         setTodos(data.filter(isTodo));
       }
-      setIsLoaded(true);
+      setLoadedUserId(currentUserId);
     }
 
     load();
-  }, []); // 第2引数の [] は「初回マウント時に1回だけ実行する」という意味
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   // 「追加」したときの処理
   async function handleAdd() {
@@ -191,6 +220,44 @@ export default function Home() {
       current.map((item) =>
         item.id === todo.id ? { ...item, done: !item.done } : item,
       ),
+    );
+  }
+
+  // ログイン状態の確認中、または未ログインのときは、一覧や入力欄を出さない
+  if (!userId) {
+    return (
+      <div className="flex flex-1 justify-center px-4 py-16 sm:py-24">
+        <main className="w-full max-w-md">
+          <h1 className="text-center text-4xl font-bold tracking-tight text-emerald-900">
+            ToDo リスト
+          </h1>
+          {userId === undefined ? (
+            <p className="mt-10 text-center text-sm text-gray-400">
+              読み込み中...
+            </p>
+          ) : (
+            <div className="mt-10 rounded-lg bg-white p-5 text-center shadow-sm">
+              <p className="text-sm text-gray-600">
+                ToDo を使うには、ログインしてください
+              </p>
+              <div className="mt-4 flex justify-center gap-2">
+                <Link
+                  href="/login"
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+                >
+                  ログイン
+                </Link>
+                <Link
+                  href="/signup"
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                >
+                  新規登録
+                </Link>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
     );
   }
 

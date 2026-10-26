@@ -229,7 +229,7 @@ export default function TodoList() {
       <div className="flex flex-1 justify-center px-4 py-16 sm:py-24">
         <main className="w-full max-w-md">
           <h1 className="text-center text-4xl font-bold tracking-tight text-emerald-900">
-            ToDo リスト
+            🚀 ToDo リスト
           </h1>
           {userId === undefined ? (
             <p className="mt-10 text-center text-sm text-gray-400">
@@ -266,7 +266,7 @@ export default function TodoList() {
       {/* max-w-md で横幅を制限し、スマホでも横スクロールが出ないようにする */}
       <main className="w-full max-w-md">
         <h1 className="text-center text-4xl font-bold tracking-tight text-emerald-900">
-          ToDo リスト
+          🚀 ToDo リスト
         </h1>
         <p className="mt-3 text-center text-sm text-gray-500">
           今日やることを書き出しましょう
